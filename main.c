@@ -146,29 +146,20 @@ static void buildReport(void){
 	uchar key; 
 
 	if(newReport == 0){	
-		if (buttonChanged_TICK == 1){
-        	if (buttonState_TICK != 0){ // if button 2 is pressed
-				key = 0; //button released event
-			} 
-			else {
-				key = 31;  // key = '2'
-			}
-			buttonChanged_TICK = 0;
-    		reportBuffer[3] = key;
-    	}
 		if(buttonChanged_DIAL == 1){
         	if (buttonState_DIAL != 0){ // if button 3 is pressed
-				key = 0; //button released event
-			} 
-			else {
 				key = 30+counter; // key = '3'
-				counter++;
+			}else {
+				key = 0; //button released event
+				counter=0;
 			}
 			buttonChanged_DIAL = 0;
 			reportBuffer[4] = key;
-    	}
+    	}else{
+		reportBuffer[4]=0;
+	}
 	
-		newReport = 1;; //if no button has changed, the previous report will be sent
+		//newReport = 1;; //if no button has changed, the previous report will be sent
 	}
 }
 
@@ -178,7 +169,9 @@ static void checkButtonChange(void) {
 	uchar tempButtonValue_DIAL = bit_is_set(BUTTON_PIN_DIAL, BUTTON_BIT_DIAL);  //status of switch is stored in tempButtonValue 
 
 	if (tempButtonValue_TICK != buttonState_TICK){ //if status has changed
-		counter++;
+		if(tempButtonValue_TICK!=0){
+			counter++;
+		}
 		buttonState_TICK = tempButtonValue_TICK;	// change buttonState to new state
 		debounceTimeIsOver = 0;	// debounce timer starts
 		newReport = 0; // initiate new report 
