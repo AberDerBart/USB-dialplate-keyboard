@@ -31,18 +31,15 @@ LOW:	 0xC1
 
 #include "usbdrv.h"
 
-#define BUTTON_PORT_B1 PORTB       /* PORTx - register for BUTTON 1 output */
-#define BUTTON_PIN_B1 PINB         /* PINx - register for BUTTON 1 input */
-#define BUTTON_BIT_B1 PB1          /* bit for BUTTON 1 input/output */
 
-#define BUTTON_PORT_B2 PORTB       /* PORTx - register for BUTTON 2 output */
-#define BUTTON_PIN_B2 PINB         /* PINx - register for BUTTON 2 input */
-#define BUTTON_BIT_B2 PB4          /* bit for BUTTON 2 input/output */
+#define BUTTON_PORT_TICK PORTB       /* PORTx - register for BUTTON 2 output */
+#define BUTTON_PIN_TICK PINB         /* PINx - register for BUTTON 2 input */
+#define BUTTON_BIT_TICK PB4          /* bit for BUTTON 2 input/output */
 
 
-#define BUTTON_PORT_B3 PORTB       /* PORTx - register for BUTTON 3 output */
-#define BUTTON_PIN_B3 PINB         /* PINx - register for BUTTON 3 input */
-#define BUTTON_BIT_B3 PB3          /* bit for BUTTON 3 input/output */
+#define BUTTON_PORT_DIAL PORTB       /* PORTx - register for BUTTON 3 output */
+#define BUTTON_PIN_DIAL PINB         /* PINx - register for BUTTON 3 input */
+#define BUTTON_BIT_DIAL PB3          /* bit for BUTTON 3 input/output */
 
 /* ------------------------------------------------------------------------- */
 
@@ -84,15 +81,14 @@ static uchar    reportBuffer[8] = {0,0,0,0,0,0,0,0};    /* buffer for HID report
 static uchar    idleRate;           /* in 4 ms units */
 static uchar    newReport = 0;		/* current report */
 
-static uchar    buttonState_B1 = 3;		/*  stores state of button 0 */
-static uchar    buttonState_B2 = 3;		/*  stores state of button 1 */
-static uchar    buttonState_B3 = 3;		/*  stores state of button 2 */
+static uchar    buttonState_TICK = 3;		/*  stores state of button 1 */
+static uchar    buttonState_DIAL = 3;		/*  stores state of button 2 */
 
-static uchar    buttonChanged_B1;		
-static uchar    buttonChanged_B2;		
-static uchar    buttonChanged_B3;		
+static uchar    buttonChanged_TICK;		
+static uchar    buttonChanged_DIAL;		
 
 static uchar	debounceTimeIsOver = 1;	/* for switch debouncing */
+static uchar    counter;	//counts ticks
 
 
 /* ------------------------------------------------------------------------- */
@@ -150,36 +146,25 @@ static void buildReport(void){
 	uchar key; 
 
 	if(newReport == 0){	
-		if (buttonChanged_B1 == 1){
-        	if (buttonState_B1 != 0){ // if button 1 is released
-				key = 0; //button released event
-			} 
-			else { //if button 1 is pressed
-				key = 30; // key = '1'
-	    	}
-			buttonChanged_B1 = 0;
-			reportBuffer[2] = key;
-		}
-
-
-		if (buttonChanged_B2 == 1){
-        	if (buttonState_B2 != 0){ // if button 2 is pressed
+		if (buttonChanged_TICK == 1){
+        	if (buttonState_TICK != 0){ // if button 2 is pressed
 				key = 0; //button released event
 			} 
 			else {
 				key = 31;  // key = '2'
 			}
-			buttonChanged_B2 = 0;
+			buttonChanged_TICK = 0;
     		reportBuffer[3] = key;
     	}
-		if(buttonChanged_B3 == 1){
-        	if (buttonState_B3 != 0){ // if button 3 is pressed
+		if(buttonChanged_DIAL == 1){
+        	if (buttonState_DIAL != 0){ // if button 3 is pressed
 				key = 0; //button released event
 			} 
 			else {
-				key = 32; // key = '3'
+				key = 30+counter; // key = '3'
+				counter++;
 			}
-			buttonChanged_B3 = 0;
+			buttonChanged_DIAL = 0;
 			reportBuffer[4] = key;
     	}
 	
@@ -189,27 +174,21 @@ static void buildReport(void){
 
 static void checkButtonChange(void) {
 	
-	uchar tempButtonValue_B1 = bit_is_set(BUTTON_PIN_B1, BUTTON_BIT_B1); //status of switch is stored in tempButtonValue 
-	uchar tempButtonValue_B2 = bit_is_set(BUTTON_PIN_B2, BUTTON_BIT_B2); //status of switch is stored in tempButtonValue 
-	uchar tempButtonValue_B3 = bit_is_set(BUTTON_PIN_B3, BUTTON_BIT_B3);  //status of switch is stored in tempButtonValue 
+	uchar tempButtonValue_TICK = bit_is_set(BUTTON_PIN_TICK, BUTTON_BIT_TICK); //status of switch is stored in tempButtonValue 
+	uchar tempButtonValue_DIAL = bit_is_set(BUTTON_PIN_DIAL, BUTTON_BIT_DIAL);  //status of switch is stored in tempButtonValue 
 
-	if (tempButtonValue_B1 != buttonState_B1){ //if status has changed
-		buttonState_B1 = tempButtonValue_B1;	// change buttonState to new state
+	if (tempButtonValue_TICK != buttonState_TICK){ //if status has changed
+		counter++;
+		buttonState_TICK = tempButtonValue_TICK;	// change buttonState to new state
 		debounceTimeIsOver = 0;	// debounce timer starts
 		newReport = 0; // initiate new report 
-		buttonChanged_B1 = 1;
+		buttonChanged_TICK = 1;
 	}
-	if (tempButtonValue_B2 != buttonState_B2){ //if status has changed
-		buttonState_B2 = tempButtonValue_B2;	// change buttonState to new state
+	if (tempButtonValue_DIAL != buttonState_DIAL){ //if status has changed
+		buttonState_DIAL = tempButtonValue_DIAL;	// change buttonState to new state
 		debounceTimeIsOver = 0;	// debounce timer starts
 		newReport = 0; // initiate new report 
-		buttonChanged_B2 = 1;
-	}
-	if (tempButtonValue_B3 != buttonState_B3){ //if status has changed
-		buttonState_B3 = tempButtonValue_B3;	// change buttonState to new state
-		debounceTimeIsOver = 0;	// debounce timer starts
-		newReport = 0; // initiate new report 
-		buttonChanged_B3 = 1;
+		buttonChanged_DIAL = 1;
 	}
 }
 
@@ -335,12 +314,12 @@ uchar   calibrationValue;
     wdt_enable(WDTO_2S);
 
 	/* turn on internal pull-up resistor for the switches */
-    BUTTON_PORT_B1 |= _BV(BUTTON_BIT_B1);
-	BUTTON_PORT_B2 |= _BV(BUTTON_BIT_B2);
-	BUTTON_PORT_B3 |= _BV(BUTTON_BIT_B3);
+	BUTTON_PORT_TICK |= _BV(BUTTON_BIT_TICK);
+	BUTTON_PORT_DIAL |= _BV(BUTTON_BIT_DIAL);
 
     timerInit();
 	
+	counter=0;
 
     sei();
 

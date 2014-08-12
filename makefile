@@ -14,7 +14,7 @@ ${TARGET}.elf: ${OBJS}
 
 .PHONY: flash
 flash: ${TARGET}.hex
-	sudo avrdude -c linuxspi -p t85 -P /dev/spidev0.0 -U flash:w:${TARGET}.hex -b 10000
+	sudo avrdude -c linuxspi -p t85 -P /dev/spidev0.0 -U flash:w:${TARGET}.hex -b 50000
 	
 .PHONY: prepare
 prepare:
