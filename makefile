@@ -22,3 +22,7 @@ prepare:
 .PHONY: fuses
 fuses:
 	sudo avrdude -p t85 -P /dev/spidev0.0 -c linuxspi -b 10000 -U lfuse:w:0xc1:m -U hfuse:w:0xdf:m -U efuse:w:0xff:m 
+
+.PHONY: clean
+clean:
+	rm -f ${OBJS} ${TARGET}.hex ${TARGET}.elf
