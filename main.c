@@ -134,7 +134,7 @@ static void timerPoll(void)
 
     if(TIFR & (1 << TOV1)){
         TIFR = (1 << TOV1); /* clear overflow */
-        if(++timerCnt >= 5){       // 5/63 sec delay for switch debouncing
+        if(++timerCnt >= 3){       // 3/63 sec delay for switch debouncing
 			timerCnt = 0;
 			debounceTimeIsOver = 1; 
         }
