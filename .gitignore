@@ -1,4 +1,10 @@
+#ignore generated binary files
+
 *.ao
 *.o
 *.elf
 *.hex
+
+#ignore temporary vi/vim files
+
+*.swp

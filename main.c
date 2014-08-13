@@ -148,7 +148,11 @@ static void buildReport(void){
 	if(newReport == 0){	
 		if(buttonChanged_DIAL == 1){
         	if (buttonState_DIAL != 0){ // if button 3 is pressed
-				key = 30+counter; // key = '3'
+				if(counter>0 && counter<11){
+					key = 29+counter; // key = '3'
+				}else{
+					key=0;
+				}
 			}else {
 				key = 0; //button released event
 				counter=0;
