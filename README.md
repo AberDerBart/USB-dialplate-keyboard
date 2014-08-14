@@ -1,6 +1,5 @@
 IMPORTANT NOTICE:
-	USB-dialplate-keyboard is in a development state and NOT WORKING CORRECTLY in the current state
-
+	Be careful when interfacing with your hardware, if you make a mistake, you could brick your USB host controller or the whole computer
 
 USB-dialplate-keyboard is a project to convert an old phones dialplate into a USB keyboard using an attiny85 microcontroller.
 
