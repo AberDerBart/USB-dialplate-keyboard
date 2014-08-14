@@ -1,22 +1,18 @@
 /* Name: main.c
- * Project: 4-Key-Keyboard
- * Author: Flip van den Berg - www.flipwork.nl
- * Creation Date: February 2010
+ * Project: USB-dialplate-keyboard
+ * Author: Jonas "AberDerBart" Grosse-Holz
+ * Creation Date: August 2014
  * Based on V-USB drivers from Objective Developments - http://www.obdev.at/products/vusb/index.html
+ * and 4-Key-Keyboard by Flip van den Berg - http://blog.flipwork.nl/?x=entry:entry100224-003937
  */
 
 
 /*
 
-IMPORTANT: 	This project uses fuse settings that disable the reset pin in order to use it as an IO pin.
-			This means that if you can only re-program the AVR afterwards using High Voltage Serial Programming (HVSP)
-
-			If you have a programmer that only supports ISP make sure to upload the firmware before setting the reset-disable fuse!
-
-Working fuse setting on ATTiny45/85:
+Working fuse setting on ATTiny85:
 
 EXTENDED: 0xFF
-HIGH:	 0x5F
+HIGH:	 0xDF
 LOW:	 0xC1
 
 */
@@ -33,14 +29,14 @@ LOW:	 0xC1
 #include "usbdrv.h"
 
 
-#define BUTTON_PORT_TICK PORTB       /* PORTx - register for BUTTON 2 output */
-#define BUTTON_PIN_TICK PINB         /* PINx - register for BUTTON 2 input */
-#define BUTTON_BIT_TICK PB4          /* bit for BUTTON 2 input/output */
+#define PORT_TICK_SWITCH PORTB       /* PORTx - register for tick switch output */
+#define PIN_TICK_SWITCH PINB         /* PINx - register for tick switch input */
+#define PB_TICK_SWITCH PB4          /* bit for tick switch input/output */
 
 
-#define BUTTON_PORT_DIAL PORTB       /* PORTx - register for BUTTON 3 output */
-#define BUTTON_PIN_DIAL PINB         /* PINx - register for BUTTON 3 input */
-#define BUTTON_BIT_DIAL PB3          /* bit for BUTTON 3 input/output */
+#define PORT_DIAL_SWITCH PORTB       /* PORTx - register for dial switch output */
+#define PIN_DIAL_SWITCH PINB         /* PINx - register for dial switch input */
+#define PB_DIAL_SWITCH PB3          /* bit for dial switch input/output */
 
 /* ------------------------------------------------------------------------- */
 
@@ -82,14 +78,11 @@ static uchar    reportBuffer[8] = {0,0,0,0,0,0,0,0};    /* buffer for HID report
 static uchar    idleRate;           /* in 4 ms units */
 static uchar    newReport = 0;		/* current report */
 
-static uchar    buttonState_TICK = 3;		/*  stores state of button 1 */
-static uchar    buttonState_DIAL = 3;		/*  stores state of button 2 */
+static uchar    switchState_TICK = 3;		/*  stores state of the tick switch */
+static uchar    switchState_DIAL = 3;		/*  stores state of the dial switch */
 
-static uchar    buttonChanged_DIAL;		
-
-static uchar	debounceTimeIsOverDial = 1;
-static uchar    counter;	//counts ticks
-static uchar timerCnt;
+static uchar    counter;			//counts ticks
+static uchar    timerCnt;		//a counter that is increasing with roughly 161Hz (see function timerInit), used for debouncing
 
 
 /* ------------------------------------------------------------------------- */
@@ -131,59 +124,57 @@ const PROGMEM char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] 
  
 static void timerPoll(void)
 {
-
-    if(TIFR & (1 << OCF1A)){
-        TIFR = (1 << OCF1A); /* clear pwm flag */
-	++timerCnt;
-    }
+	//increases the counter every time timer1 is resetted
+	if(TIFR & (1 << OCF1A)){
+        	TIFR = (1 << OCF1A); /* clear pwm flag */
+		++timerCnt;
+	}
 }
 
 static void buildReport(void){
 
-	uchar key; 
-
-	if (buttonState_DIAL != 0 && counter>0 &&  counter<11){ // if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
-		key = 29+counter; //key is the number key with the value of counter, except when counter=10, key='0'
+	if (switchState_DIAL != 0 && counter>0 &&  counter<11){		// if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
+		reportBuffer[4] = 29+counter;				//key is the number key with the value of counter, except when counter=10, key='0'
 		counter=0;
-	}else {
-		key = 0; //dial switch is closed
+	}else {								
+		reportBuffer[4] = 0;					//send the 0 to explain the computer, that no key is pressed anymore
 		counter=0;
 		newReport=1;
 	}
-	reportBuffer[4] = key;
 }
 
 static void checkButtonChange(void) {
 	
-	uchar tempButtonValue_TICK = bit_is_set(BUTTON_PIN_TICK, BUTTON_BIT_TICK); //status of switch is stored in tempButtonValue 
-	uchar tempButtonValue_DIAL = bit_is_set(BUTTON_PIN_DIAL, BUTTON_BIT_DIAL);  //status of switch is stored in tempButtonValue 
+	uchar tmpSwitchValue_TICK = bit_is_set(PIN_TICK_SWITCH, PB_TICK_SWITCH); //status of tick switch is stored in tmpSwitchValue_TICK
+	uchar tmpSwitchValue_DIAL = bit_is_set(PIN_DIAL_SWITCH, PB_DIAL_SWITCH);  //status of dial switch is stored in tmpSwitchValue_DIAL
 
 	static uchar lastTimerTick;
 	static uchar lastTimerDial;
 	uint16_t tmpTimer;
 
-	if (tempButtonValue_TICK != buttonState_TICK){ //if status has changed
+	if (tmpSwitchValue_TICK != switchState_TICK){	//if status has changed
 		tmpTimer=timerCnt;
 		if(lastTimerTick>tmpTimer){
 			tmpTimer+=256;
 		}
-		if(tmpTimer-lastTimerTick>=2){
-			if(tempButtonValue_TICK!=0){
-				counter++;
+		if(tmpTimer-lastTimerTick>=2){		//if the switch is debounced (at least 6.25ms have passed without bonucing)
+			if(tmpSwitchValue_TICK!=0){	//if the switch is closed
+				counter++;		//increase counter
 			}
 		}
-		lastTimerTick=timerCnt;
-		buttonState_TICK = tempButtonValue_TICK;	// change buttonState to new state
+		lastTimerTick=timerCnt;			//update the debonucing timer for the tick switch
+		switchState_TICK = tmpSwitchValue_TICK;	// change buttonState to new state
 	}
-	if (tempButtonValue_DIAL != buttonState_DIAL){ //if status has changed
+	if (tmpSwitchValue_DIAL != switchState_DIAL){	//if status has changed
 		tmpTimer=timerCnt;
 		if(lastTimerTick>tmpTimer){
 			tmpTimer+=256;
 		}
-		if(tmpTimer-lastTimerDial >= 2){
-			buttonState_DIAL = tempButtonValue_DIAL;	// change buttonState to new state
+		if(tmpTimer-lastTimerDial >= 2){	 //if the switch is debounced (at least 6.25ms have passed without bonucing)
+			switchState_DIAL = tmpSwitchValue_DIAL;	// change buttonState to new state
 		}
 		newReport = 0; // initiate new report 
+		lastTimerDial = timerCnt;		//update the debouncing timer for the dial switch
 	}
 }
 
@@ -195,9 +186,9 @@ static void timerInit(void)
 	TCCR1 = 0xcc;
 	//disable comparator b 
 	GTCCR = 0x00;
-	//reset counter after 201 ticks (8056.64 Hz/201 =40.07 Hz reset rate)
+	//reset counter after 50 ticks (8056.64 Hz/50 = 161.13 Hz reset rate)
 	OCR1C = 50; 
-	//set OCF1A flag after 100 ticks, roughly the half of a cycle
+	//set OCF1A flag after 25 ticks, roughly the half of a cycle
 	OCR1A = 25;
 }
 
@@ -316,8 +307,8 @@ uchar   calibrationValue;
     wdt_enable(WDTO_2S);
 
 	/* turn on internal pull-up resistor for the switches */
-	BUTTON_PORT_TICK |= _BV(BUTTON_BIT_TICK);
-	BUTTON_PORT_DIAL |= _BV(BUTTON_BIT_DIAL);
+	PORT_TICK_SWITCH |= _BV(PB_TICK_SWITCH);
+	PORT_DIAL_SWITCH |= _BV(PB_DIAL_SWITCH);
 
     timerInit();
 	
