@@ -28,6 +28,7 @@ LOW:	 0xC1
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "usbdrv.h"
 
@@ -159,9 +160,14 @@ static void checkButtonChange(void) {
 
 	static uchar lastTimerTick;
 	static uchar lastTimerDial;
+	uint16_t tmpTimer;
 
 	if (tempButtonValue_TICK != buttonState_TICK){ //if status has changed
-		if(timerCnt-lastTimerTick>=2){
+		tmpTimer=timerCnt;
+		if(lastTimerTick>tmpTimer){
+			tmpTimer+=256;
+		}
+		if(tmpTimer-lastTimerTick>=2){
 			if(tempButtonValue_TICK!=0){
 				counter++;
 			}
@@ -170,7 +176,11 @@ static void checkButtonChange(void) {
 		buttonState_TICK = tempButtonValue_TICK;	// change buttonState to new state
 	}
 	if (tempButtonValue_DIAL != buttonState_DIAL){ //if status has changed
-		if(timerCnt-lastTimerDial >= 2){
+		tmpTimer=timerCnt;
+		if(lastTimerTick>tmpTimer){
+			tmpTimer+=256;
+		}
+		if(tmpTimer-lastTimerDial >= 2){
 			buttonState_DIAL = tempButtonValue_DIAL;	// change buttonState to new state
 		}
 		newReport = 0; // initiate new report 
@@ -186,9 +196,9 @@ static void timerInit(void)
 	//disable comparator b 
 	GTCCR = 0x00;
 	//reset counter after 201 ticks (8056.64 Hz/201 =40.07 Hz reset rate)
-	OCR1C = 100; 
+	OCR1C = 50; 
 	//set OCF1A flag after 100 ticks, roughly the half of a cycle
-	OCR1A = 50;
+	OCR1A = 25;
 }
 
 /* -------------------------------------------------------------------------------- */
