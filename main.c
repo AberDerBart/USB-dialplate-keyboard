@@ -143,6 +143,7 @@ static void buildReport(void){
 
 	if (buttonState_DIAL != 0 && counter>0 &&  counter<11){ // if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
 		key = 29+counter; //key is the number key with the value of counter, except when counter=10, key='0'
+		counter=0;
 	}else {
 		key = 0; //dial switch is closed
 		counter=0;
