@@ -84,11 +84,11 @@ static uchar    newReport = 0;		/* current report */
 static uchar    buttonState_TICK = 3;		/*  stores state of button 1 */
 static uchar    buttonState_DIAL = 3;		/*  stores state of button 2 */
 
-static uchar    buttonChanged_TICK;		
 static uchar    buttonChanged_DIAL;		
 
-static uchar	debounceTimeIsOver = 1;	/* for switch debouncing */
+static uchar	debounceTimeIsOverDial = 1;
 static uchar    counter;	//counts ticks
+static uchar timerCnt;
 
 
 /* ------------------------------------------------------------------------- */
@@ -130,41 +130,25 @@ const PROGMEM char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] 
  
 static void timerPoll(void)
 {
-	static unsigned int timerCnt;
 
-    if(TIFR & (1 << TOV1)){
-        TIFR = (1 << TOV1); /* clear overflow */
-        if(++timerCnt >= 3){       // 3/63 sec delay for switch debouncing
-			timerCnt = 0;
-			debounceTimeIsOver = 1; 
-        }
+    if(TIFR & (1 << OCF1A)){
+        TIFR = (1 << OCF1A); /* clear pwm flag */
+	++timerCnt;
     }
 }
 
 static void buildReport(void){
-	
+
 	uchar key; 
 
-	if(newReport == 0){	
-		if(buttonChanged_DIAL == 1){
-        	if (buttonState_DIAL != 0){ // if button 3 is pressed
-				if(counter>0 && counter<11){
-					key = 29+counter; // key = '3'
-				}else{
-					key=0;
-				}
-			}else {
-				key = 0; //button released event
-				counter=0;
-			}
-			buttonChanged_DIAL = 0;
-			reportBuffer[4] = key;
-    	}else{
-		reportBuffer[4]=0;
+	if (buttonState_DIAL != 0 && counter>0 &&  counter<11){ // if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
+		key = 29+counter; //key is the number key with the value of counter, except when counter=10, key='0'
+	}else {
+		key = 0; //dial switch is closed
+		counter=0;
+		newReport=1;
 	}
-	
-		//newReport = 1;; //if no button has changed, the previous report will be sent
-	}
+	reportBuffer[4] = key;
 }
 
 static void checkButtonChange(void) {
@@ -172,20 +156,23 @@ static void checkButtonChange(void) {
 	uchar tempButtonValue_TICK = bit_is_set(BUTTON_PIN_TICK, BUTTON_BIT_TICK); //status of switch is stored in tempButtonValue 
 	uchar tempButtonValue_DIAL = bit_is_set(BUTTON_PIN_DIAL, BUTTON_BIT_DIAL);  //status of switch is stored in tempButtonValue 
 
+	static uchar lastTimerTick;
+	static uchar lastTimerDial;
+
 	if (tempButtonValue_TICK != buttonState_TICK){ //if status has changed
-		if(tempButtonValue_TICK!=0){
-			counter++;
+		if(timerCnt-lastTimerTick>=2){
+			if(tempButtonValue_TICK!=0){
+				counter++;
+			}
 		}
+		lastTimerTick=timerCnt;
 		buttonState_TICK = tempButtonValue_TICK;	// change buttonState to new state
-		debounceTimeIsOver = 0;	// debounce timer starts
-		newReport = 0; // initiate new report 
-		buttonChanged_TICK = 1;
 	}
 	if (tempButtonValue_DIAL != buttonState_DIAL){ //if status has changed
-		buttonState_DIAL = tempButtonValue_DIAL;	// change buttonState to new state
-		debounceTimeIsOver = 0;	// debounce timer starts
+		if(timerCnt-lastTimerDial >= 2){
+			buttonState_DIAL = tempButtonValue_DIAL;	// change buttonState to new state
+		}
 		newReport = 0; // initiate new report 
-		buttonChanged_DIAL = 1;
 	}
 }
 
@@ -193,7 +180,14 @@ static void checkButtonChange(void) {
 
 static void timerInit(void)
 {
-    TCCR1 = 0x0b;           /* select clock: 16.5M/1k -> overflow rate = 16.5M/256k = 62.94 Hz */
+	//set timer1 speed to 16.5 MHZ/2048 = 8056.64Hz, enable reset on TCNT1 = OCR1C and PWM A
+	TCCR1 = 0xcc;
+	//disable comparator b 
+	GTCCR = 0x00;
+	//reset counter after 201 ticks (8056.64 Hz/201 =40.07 Hz reset rate)
+	OCR1C = 100; 
+	//set OCF1A flag after 100 ticks, roughly the half of a cycle
+	OCR1A = 50;
 }
 
 /* -------------------------------------------------------------------------------- */
@@ -323,16 +317,13 @@ uchar   calibrationValue;
     for(;;){    /* main event loop */
         wdt_reset();
         usbPoll();
-		if (debounceTimeIsOver == 1){
-			checkButtonChange();
-		}
-
-		if(usbInterruptIsReady() && newReport == 0){ /* we can send another report */
-        	buildReport();
-           	usbSetInterrupt(reportBuffer, sizeof(reportBuffer));
-        	}
+	checkButtonChange();
+	if(usbInterruptIsReady() && newReport == 0){ /* we can send another report */
+		buildReport();
+		usbSetInterrupt(reportBuffer, sizeof(reportBuffer));
+	}
         
-		timerPoll();
+	timerPoll();
 	}
    	return 0;
 }
