@@ -105,7 +105,7 @@
 /* Define this to 1 if the device has its own power supply. Set it to 0 if the
  * device is powered from the USB bus.
  */
-#define USB_CFG_MAX_BUS_POWER           50
+#define USB_CFG_MAX_BUS_POWER           150
 /* Set this variable to the maximum USB bus power consumption of your device.
  * The value is in milliamperes. [It will be divided by two since USB
  * communicates power requirements in units of 2 mA.]
@@ -224,11 +224,11 @@ extern void hadUsbReset(void);
  * with libusb: 0x16c0/0x5dc.  Use this VID/PID pair ONLY if you understand
  * the implications!
  */
-#define USB_CFG_DEVICE_VERSION  0x00, 0x01
+#define USB_CFG_DEVICE_VERSION  0x01, 0x01
 /* Version number of the device: Minor number first, then major number.
  */
-#define USB_CFG_VENDOR_NAME     'f', 'l', 'i', 'p', 'w', 'o', 'r', 'k', '.', 'n', 'l'
-#define USB_CFG_VENDOR_NAME_LEN 11
+#define USB_CFG_VENDOR_NAME     'j','.','g','r','o','s','s','e','-','h','o','l','z','@','g','m','x','.','d','e'
+#define USB_CFG_VENDOR_NAME_LEN 20
 /* These two values define the vendor name returned by the USB device. The name
  * must be given as a list of characters under single quotes. The characters
  * are interpreted as Unicode (UTF-16) entities.
@@ -237,8 +237,8 @@ extern void hadUsbReset(void);
  * obdev's free shared VID/PID pair. See the file USB-IDs-for-free.txt for
  * details.
  */
-#define USB_CFG_DEVICE_NAME     '4', '-', 'K', 'e', 'y', '-', 'K', 'e', 'y', 'b', 'o', 'a', 'r', 'd'
-#define USB_CFG_DEVICE_NAME_LEN 14
+#define USB_CFG_DEVICE_NAME     'U', 'S', 'B', ' ', 'd', 'i', 'a', 'l', 'p', 'l', 'a', 't', 'e'
+#define USB_CFG_DEVICE_NAME_LEN 13
 /* Same as above for the device name. If you don't want a device name, undefine
  * the macros. See the file USB-IDs-for-free.txt before you assign a name if
  * you use a shared VID/PID.
