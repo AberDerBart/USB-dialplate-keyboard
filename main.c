@@ -158,6 +158,9 @@ struct pinState {
 	uint16_t lastBounce;
 }
 
+struct pinState stateTICK={PIN_TICK_SWITCH,PORT_TICK_SWITCH,STATE_NONE,3,0};
+struct pinState stateDIAL={PIN_DIAL_SWITCH,PORT_DIAL_SWITCH,STATE_NONE,3,0};
+
 static void updatePin(struct pinState* s){
 	uchar newLevel=bit_is_set(s->pin,s->pb);
 	
