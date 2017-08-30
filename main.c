@@ -145,8 +145,8 @@ static void buildReport(void){
 }
 
 #define STATE_NONE 0
-#define STATE_TOGGLE 2
-#define STATE_BOUNCE 4
+#define STATE_TOGGLE 1
+#define STATE_BOUNCE 2
 
 #define DEBOUNCE_COUNT 2
 
@@ -161,7 +161,7 @@ struct pinState {
 static void updatePin(struct pinState* s){
 	uchar newLevel=bit_is_set(s->pin,s->pb);
 	
-	if(s->state & STATE_BOUNCE){
+	if(s->state == STATE_BOUNCE){
 
 		//if the debounce timer ran out, save the new state and set the STATE_TOGGLE flag if neccessary
 		if((s->lastBounce-timerCnt)%256 => DEBOUNCE_COUNT){
