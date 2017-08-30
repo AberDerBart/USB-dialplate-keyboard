@@ -78,9 +78,6 @@ static uchar    reportBuffer[8] = {0,0,0,0,0,0,0,0};    /* buffer for HID report
 static uchar    idleRate;           /* in 4 ms units */
 static uchar    newReport = 0;		/* current report */
 
-static uchar    switchState_TICK = 3;		/*  stores state of the tick switch */
-static uchar    switchState_DIAL = 3;		/*  stores state of the dial switch */
-
 static uchar    counter;			//counts ticks
 static uchar    timerCnt;		//a counter that is increasing with roughly 161Hz (see function timerInit), used for debouncing
 
@@ -134,7 +131,7 @@ static void timerPoll(void)
 
 static void buildReport(void){
 
-	if (switchState_DIAL != 0 && counter>0 &&  counter<11){		// if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
+	if (stateDIAL->level != 0 && counter>0 &&  counter<11){		// if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
 		reportBuffer[4] = 29+counter;				//key is the number key with the value of counter, except when counter=10, key='0'
 		counter=0;
 	}else {								
@@ -184,7 +181,8 @@ static void updatePin(struct pinState* s){
 		if(s->level != newLevel){
 			s->state = STATE_BOUNCE;
 			s->lastBounce = timerCnt;
-		}
+		}else{
+			s->state = STATE_NONE;
 	}
 
 	//update the level
@@ -193,36 +191,14 @@ static void updatePin(struct pinState* s){
 
 static void checkButtonChange(void) {
 	
-	uchar tmpSwitchValue_TICK = bit_is_set(PIN_TICK_SWITCH, PB_TICK_SWITCH); //status of tick switch is stored in tmpSwitchValue_TICK
-	uchar tmpSwitchValue_DIAL = bit_is_set(PIN_DIAL_SWITCH, PB_DIAL_SWITCH);  //status of dial switch is stored in tmpSwitchValue_DIAL
+	updatePin(stateTICK);
+	updatePin(stateDIAL);
 
-	static uchar lastTimerTick;
-	static uchar lastTimerDial;
-	uint16_t tmpTimer;
-
-	if (tmpSwitchValue_TICK != switchState_TICK){	//if status has changed
-		tmpTimer=timerCnt;
-		if(lastTimerTick>tmpTimer){
-			tmpTimer+=256;
-		}
-		if(tmpTimer-lastTimerTick>=2){		//if the switch is debounced (at least 6.25ms have passed without bonucing)
-			if(tmpSwitchValue_TICK!=0){	//if the switch is closed
-				counter++;		//increase counter
-			}
-		}
-		lastTimerTick=timerCnt;			//update the debonucing timer for the tick switch
-		switchState_TICK = tmpSwitchValue_TICK;	// change buttonState to new state
+	if(stateTICK->state == STATE_TOGGLE && stateTICK->level != 0){
+		counter++;
 	}
-	if (tmpSwitchValue_DIAL != switchState_DIAL){	//if status has changed
-		tmpTimer=timerCnt;
-		if(lastTimerTick>tmpTimer){
-			tmpTimer+=256;
-		}
-		if(tmpTimer-lastTimerDial >= 2){	 //if the switch is debounced (at least 6.25ms have passed without bonucing)
-			switchState_DIAL = tmpSwitchValue_DIAL;	// change buttonState to new state
-		}
-		newReport = 0; // initiate new report 
-		lastTimerDial = timerCnt;		//update the debouncing timer for the dial switch
+	if(stateDIAL->state == STATE_TOGGL){
+		newReport=0;
 	}
 }
 
