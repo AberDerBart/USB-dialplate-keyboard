@@ -85,6 +85,7 @@ static uchar    counter;			//counts ticks
 static uchar    timerCnt;		//a counter that is increasing with roughly 161Hz (see function timerInit), used for debouncing
 
 
+
 /* ------------------------------------------------------------------------- */
 
 const PROGMEM char usbHidReportDescriptor[USB_CFG_HID_REPORT_DESCRIPTOR_LENGTH] = {
@@ -141,6 +142,50 @@ static void buildReport(void){
 		counter=0;
 		newReport=1;
 	}
+}
+
+#define STATE_NONE 0
+#define STATE_TOGGLE 2
+#define STATE_BOUNCE 4
+
+#define DEBOUNCE_COUNT 2
+
+struct pinState {
+	int pin;
+	int pb;
+	uchar state;
+	uchar level;
+	uint16_t lastBounce;
+}
+
+static void updatePin(struct pinState* s){
+	uchar newLevel=bit_is_set(s->pin,s->pb);
+	
+	if(s->state & STATE_BOUNCE){
+
+		//if the debounce timer ran out, save the new state and set the STATE_TOGGLE flag if neccessary
+		if((s->lastBounce-timerCnt)%256 => DEBOUNCE_COUNT){
+			if(s->level != newLevel){
+				s->state = STATE_TOGGLE;
+			}else{
+				s->state = STATE_NONE;
+			}
+		}else{
+			//if there was another toggle, we're still bouncing, adjust the timestamp of the last bounce
+			if(s->level != newLevel){
+				s->lastBounce = timerCnt;
+			}
+		}
+	}else{
+		// if the level changed, change state to STATE_BOUNCE
+		if(s->level != newLevel){
+			s->state = STATE_BOUNCE;
+			s->lastBounce = timerCnt;
+		}
+	}
+
+	//update the level
+	s->level = newLevel;
 }
 
 static void checkButtonChange(void) {
