@@ -129,18 +129,6 @@ static void timerPoll(void)
 	}
 }
 
-static void buildReport(void){
-
-	if (stateDIAL->level != 0 && counter>0 &&  counter<11){		// if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
-		reportBuffer[4] = 29+counter;				//key is the number key with the value of counter, except when counter=10, key='0'
-		counter=0;
-	}else {								
-		reportBuffer[4] = 0;					//send the 0 to explain the computer, that no key is pressed anymore
-		counter=0;
-		newReport=1;
-	}
-}
-
 #define STATE_NONE 0
 #define STATE_TOGGLE 1
 #define STATE_BOUNCE 2
@@ -153,10 +141,35 @@ struct pinState {
 	uchar state;
 	uchar level;
 	uint16_t lastBounce;
-}
+};
 
-struct pinState stateTICK={PIN_TICK_SWITCH,PORT_TICK_SWITCH,STATE_NONE,3,0};
-struct pinState stateDIAL={PIN_DIAL_SWITCH,PORT_DIAL_SWITCH,STATE_NONE,3,0};
+struct pinState stateTICK={
+	.pin=0,
+	.pb=0,
+	.state=STATE_NONE,
+	.level=3,
+	.lastBounce=0
+};
+
+struct pinState stateDIAL={
+	.pin=0,
+	.pb=0,
+	.state=STATE_NONE,
+	.level=3,
+	.lastBounce=0
+};
+
+static void buildReport(void){
+
+	if (stateDIAL.level != 0 && counter>0 &&  counter<11){		// if dial switch is opened (=dialing a digit finished) and the counter is valid (values 1 to 10 are valid)
+		reportBuffer[4] = 29+counter;				//key is the number key with the value of counter, except when counter=10, key='0'
+		counter=0;
+	}else {								
+		reportBuffer[4] = 0;					//send the 0 to explain the computer, that no key is pressed anymore
+		counter=0;
+		newReport=1;
+	}
+}
 
 static void updatePin(struct pinState* s){
 	uchar newLevel=bit_is_set(s->pin,s->pb);
@@ -164,7 +177,7 @@ static void updatePin(struct pinState* s){
 	if(s->state == STATE_BOUNCE){
 
 		//if the debounce timer ran out, save the new state and set the STATE_TOGGLE flag if neccessary
-		if((s->lastBounce-timerCnt)%256 => DEBOUNCE_COUNT){
+		if((s->lastBounce-timerCnt)%256 >= DEBOUNCE_COUNT){
 			if(s->level != newLevel){
 				s->state = STATE_TOGGLE;
 			}else{
@@ -183,6 +196,7 @@ static void updatePin(struct pinState* s){
 			s->lastBounce = timerCnt;
 		}else{
 			s->state = STATE_NONE;
+		}
 	}
 
 	//update the level
@@ -191,13 +205,13 @@ static void updatePin(struct pinState* s){
 
 static void checkButtonChange(void) {
 	
-	updatePin(stateTICK);
-	updatePin(stateDIAL);
+	updatePin(&stateTICK);
+	updatePin(&stateDIAL);
 
-	if(stateTICK->state == STATE_TOGGLE && stateTICK->level != 0){
+	if(stateTICK.state == STATE_TOGGLE && stateTICK.level != 0){
 		counter++;
 	}
-	if(stateDIAL->state == STATE_TOGGL){
+	if(stateDIAL.state == STATE_TOGGLE){
 		newReport=0;
 	}
 }
@@ -330,6 +344,11 @@ uchar   calibrationValue;
 
     wdt_enable(WDTO_2S);
 
+	//initialize input pins
+	stateTICK.pin=PIN_TICK_SWITCH;
+	stateTICK.pb=PB_TICK_SWITCH;
+	stateDIAL.pin=PIN_DIAL_SWITCH;
+	stateDIAL.pb=PB_DIAL_SWITCH;
 	/* turn on internal pull-up resistor for the switches */
 	PORT_TICK_SWITCH |= _BV(PB_TICK_SWITCH);
 	PORT_DIAL_SWITCH |= _BV(PB_DIAL_SWITCH);
